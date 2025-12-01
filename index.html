@@ -38,9 +38,40 @@
             </div>
         </header>
 
+        <!-- AI Lookup Section -->
+        <div class="max-w-xl mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-[#30363d] mb-10">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-yellow-400">
+                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"></path>
+                    <path d="M12 16v-4"></path>
+                    <path d="M12 8h.01"></path>
+                </svg>
+                AI Car Code Suggestion
+            </h2>
+            <div id="ai-lookup-section">
+                <label for="ai-image-url" class="block text-sm font-medium text-gray-400 mb-1">Paste Car Image URL (e.g., Garage Screenshot)</label>
+                <div class="flex space-x-2">
+                    <input type="url" id="ai-image-url" placeholder="https://doschdesign.com/images/image/Generic_02.jpg" class="flex-grow px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-yellow-400 focus:border-yellow-400 text-white">
+                    <button type="button" id="generate-button" class="flex-shrink-0 py-2 px-4 bg-yellow-600 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-700 transition duration-200 flex items-center">
+                        <span id="generate-text">Generate Info</span>
+                        <span id="ai-loading-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full ml-2"></span>
+                    </button>
+                </div>
+                <p id="ai-message-box" class="mt-3 text-sm font-medium"></p>
+                <div id="ai-results" class="mt-4 p-3 bg-[#0d1117] border border-[#30363d] rounded-lg hidden">
+                    <p class="text-yellow-400 font-semibold mb-2">AI Suggestions:</p>
+                    <p class="text-gray-300 mb-1">Car Name: <span id="suggested-name" class="font-bold text-white"></span></p>
+                    <p class="text-gray-300">Spawn Code: <span id="suggested-code" class="font-bold text-white"></span></p>
+                    <button type="button" id="apply-suggestions" class="mt-3 w-full py-2 bg-[#58a6ff] text-white font-semibold rounded-lg hover:bg-[#79a9e3] transition duration-200">
+                        Use These Suggestions
+                    </button>
+                </div>
+            </div>
+        </div>
+        
         <!-- Submission Form -->
         <div class="max-w-xl mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-[#30363d] mb-10">
-            <h2 class="text-2xl font-bold mb-4 text-white">Submit a New Car</h2>
+            <h2 class="text-2xl font-bold mb-4 text-white">Manual Car Submission</h2>
             <form id="submission-form">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Car Name -->
@@ -58,7 +89,7 @@
 
                 <!-- Image URL -->
                 <div class="mt-4">
-                    <label for="image-url" class="block text-sm font-medium text-gray-400 mb-1">Picture URL (Optional)</label>
+                    <label for="image-url" class="block text-sm font-medium text-gray-400 mb-1">Picture URL (Optional, for Manual Submission)</label>
                     <input type="url" id="image-url" placeholder="https://i.imgur.com/car.jpg" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
                 </div>
 
@@ -120,16 +151,34 @@
         // --- END CUSTOM FIREBASE CONFIGURATION ---
 
         let db, auth, userId, currentCarData = [];
+        const apiKey = ""; // API Key for Gemini API, provided by Canvas environment
 
-        // UI Elements
+        // UI Elements (Form)
         const form = document.getElementById('submission-form');
-        const carList = document.getElementById('car-list');
-        const loader = document.getElementById('car-list-loader');
-        const noCarsMessage = document.getElementById('no-cars-message');
+        const carNameInput = document.getElementById('car-name');
+        const spawnCodeInput = document.getElementById('spawn-code');
+        const imageUrlInput = document.getElementById('image-url');
+        const discordNameInput = document.getElementById('discord-name');
         const messageBox = document.getElementById('message-box');
         const submitButton = document.getElementById('submit-button');
         const buttonText = document.getElementById('button-text');
         const loadingSpinner = document.getElementById('loading-spinner');
+        
+        // UI Elements (AI)
+        const aiImageUrlInput = document.getElementById('ai-image-url');
+        const generateButton = document.getElementById('generate-button');
+        const generateText = document.getElementById('generate-text');
+        const aiLoadingSpinner = document.getElementById('ai-loading-spinner');
+        const aiMessageBox = document.getElementById('ai-message-box');
+        const aiResultsDiv = document.getElementById('ai-results');
+        const suggestedNameSpan = document.getElementById('suggested-name');
+        const suggestedCodeSpan = document.getElementById('suggested-code');
+        const applySuggestionsButton = document.getElementById('apply-suggestions');
+
+        // UI Elements (List)
+        const carList = document.getElementById('car-list');
+        const loader = document.getElementById('car-list-loader');
+        const noCarsMessage = document.getElementById('no-cars-message');
         const userInfo = document.getElementById('user-info');
         const exportCsvButton = document.getElementById('export-csv-button');
 
@@ -137,46 +186,209 @@
         const PUBLIC_CARS_COLLECTION_PATH = `artifacts/${appId}/public/data/cars`;
 
         // Utility to display messages
-        function showMessage(text, isError = false) {
-            messageBox.textContent = text;
-            messageBox.className = `mt-3 text-sm text-center font-medium ${isError ? 'text-red-400' : 'text-green-400'}`;
+        function showMessage(box, text, isError = false) {
+            box.textContent = text;
+            box.className = `mt-3 text-sm text-center font-medium ${isError ? 'text-red-400' : 'text-green-400'}`;
             setTimeout(() => {
-                messageBox.textContent = '';
+                box.textContent = '';
             }, 5000);
         }
+        
+        function showFormMessage(text, isError = false) {
+            showMessage(messageBox, text, isError);
+        }
+        
+        function showAiMessage(text, isError = false) {
+            showMessage(aiMessageBox, text, isError);
+        }
 
-        // Utility to toggle loading state
+        // Utility to toggle loading state for manual submit
         function toggleLoading(isLoading) {
             submitButton.disabled = isLoading;
             buttonText.classList.toggle('hidden', isLoading);
             loadingSpinner.classList.toggle('hidden', !isLoading);
         }
 
+        // Utility to toggle loading state for AI lookup
+        function toggleAiLoading(isLoading) {
+            generateButton.disabled = isLoading;
+            generateText.textContent = isLoading ? 'Analyzing...' : 'Generate Info';
+            aiLoadingSpinner.classList.toggle('hidden', !isLoading);
+        }
+        
+        // --- AI LOOKUP LOGIC ---
+
+        // Function to fetch image data and convert to base64
+        async function getBase64Image(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(\`Failed to fetch image: \${response.statusText}\`);
+
+                const blob = await response.blob();
+                
+                // Get MIME type from the blob
+                const mimeType = blob.type;
+                if (!mimeType.startsWith('image/')) {
+                     throw new Error('URL does not point to a valid image file.');
+                }
+                
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        // Extract base64 part (after "data:image/jpeg;base64,")
+                        const base64Data = reader.result.split(',')[1];
+                        resolve({ base64Data, mimeType });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error("Error fetching or converting image:", error);
+                throw new Error("Could not load or process the image from the URL provided. Please check the URL.");
+            }
+        }
+
+        // Main AI Generation function
+        async function generateCarInfo() {
+            aiResultsDiv.classList.add('hidden');
+            const imageUrl = aiImageUrlInput.value.trim();
+
+            if (!imageUrl) {
+                showAiMessage("Please paste an image URL first.", true);
+                return;
+            }
+
+            toggleAiLoading(true);
+            showAiMessage("Analyzing image, please wait...", false);
+
+            try {
+                // 1. Get Base64 data from the URL
+                const { base64Data, mimeType } = await getBase64Image(imageUrl);
+
+                // 2. Define the system instruction and user prompt
+                const systemPrompt = \`You are an expert vehicle identification assistant. Analyze the image and extract the Car Name (model name) and its corresponding 5-letter Spawn Code used in the game FiveM/GTA V roleplaying servers. Your output MUST be in a strict JSON format.\`;
+                const userQuery = \`Analyze this image of a car. Identify the Car Name (e.g., Sultan RS) and its 5-letter Spawn Code (e.g., SULTN). If you cannot confidently identify the code, provide a best guess or leave the spawnCode blank. Respond only with the JSON object.\`;
+
+                // 3. Construct the API payload for structured response
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: userQuery },
+                                {
+                                    inlineData: {
+                                        mimeType: mimeType,
+                                        data: base64Data
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "carName": { "type": "STRING", "description": "The full vehicle name or model." },
+                                "spawnCode": { "type": "STRING", "description": "The 5-letter spawn code for the car." }
+                            },
+                            required: ["carName", "spawnCode"]
+                        }
+                    }
+                };
+
+                const apiUrl = \`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=\${apiKey}\`;
+
+                // 4. Make the API call (with exponential backoff handled by the environment)
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                let generatedData = null;
+                
+                // 5. Extract and parse the JSON response
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    generatedData = JSON.parse(jsonString);
+                    
+                } else {
+                    throw new Error("AI response was empty or malformed.");
+                }
+
+                if (generatedData && generatedData.carName && generatedData.spawnCode) {
+                    // Display the suggestions
+                    suggestedNameSpan.textContent = generatedData.carName;
+                    suggestedCodeSpan.textContent = generatedData.spawnCode;
+                    aiResultsDiv.classList.remove('hidden');
+                    showAiMessage("Analysis complete! Review the suggestions below.", false);
+
+                    // Store the image URL to be applied later
+                    aiResultsDiv.dataset.imageUrl = imageUrl; 
+                    
+                } else {
+                    throw new Error("AI could not confidently identify the car name or spawn code.");
+                }
+
+            } catch (error) {
+                console.error("AI Lookup failed:", error);
+                showAiMessage(\`AI Lookup failed: \${error.message}\`, true);
+            } finally {
+                toggleAiLoading(false);
+            }
+        }
+        
+        // Event Listeners for AI section
+        generateButton.addEventListener('click', generateCarInfo);
+        applySuggestionsButton.addEventListener('click', () => {
+            const suggestedName = suggestedNameSpan.textContent;
+            const suggestedCode = suggestedCodeSpan.textContent;
+            const aiImageUrl = aiResultsDiv.dataset.imageUrl || aiImageUrlInput.value.trim();
+
+            if (suggestedName && suggestedCode) {
+                // Fill the manual submission fields
+                carNameInput.value = suggestedName;
+                spawnCodeInput.value = suggestedCode;
+                imageUrlInput.value = aiImageUrl; // Apply the image URL to the manual submission form
+                
+                showFormMessage("Suggestions applied to the submission form! Please check the details and add your Discord Name.", false);
+                // Clear AI results section after applying
+                aiResultsDiv.classList.add('hidden');
+            }
+        });
+
+
+        // --- FIREBASE INITIALIZATION AND CRUD (Unchanged from previous version) ---
+        
         // --- 1. INITIALIZATION AND AUTHENTICATION ---
         async function initializeFirebase() {
             try {
-                // Set Firestore log level for debugging
-                // setLogLevel('debug');
+                // setLogLevel('debug'); // Uncomment for Firestore debugging
                 
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                // Ensure session persistence is set (optional, but good practice)
                 await setPersistence(auth, browserSessionPersistence);
 
-                // Sign in using the custom token or anonymously
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // Sign in anonymously for public read/write access (as defined in the security rules)
                     await signInAnonymously(auth);
                 }
 
-                // Listen for Auth state changes to set userId and start data sync
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        // userId is the unique identifier used by the app for tracking submissions
                         userId = user.uid;
                         userInfo.textContent = `Current User ID: ${userId} (used for tracking submissions)`;
                         startRealtimeListener();
@@ -188,7 +400,7 @@
 
             } catch (error) {
                 console.error("Firebase initialization or authentication failed:", error);
-                showMessage(`Initialization error: ${error.message}`, true);
+                showFormMessage(`Initialization error: ${error.message}`, true);
             }
         }
 
@@ -196,15 +408,15 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!db || !userId) {
-                showMessage("Database connection not ready. Please wait.", true);
+                showFormMessage("Database connection not ready. Please wait.", true);
                 return;
             }
 
             // Get raw input values
-            const rawCarName = document.getElementById('car-name').value;
-            const rawSpawnCode = document.getElementById('spawn-code').value;
-            const imageUrl = document.getElementById('image-url').value.trim();
-            const rawDiscordName = document.getElementById('discord-name').value;
+            const rawCarName = carNameInput.value;
+            const rawSpawnCode = spawnCodeInput.value;
+            const imageUrl = imageUrlInput.value.trim();
+            const rawDiscordName = discordNameInput.value;
 
             // Normalize and validate inputs
             const carName = rawCarName.trim();
@@ -212,7 +424,7 @@
             const discordName = rawDiscordName.trim();
             
             if (!carName || !spawnCode || !discordName) {
-                showMessage("Car Name, Spawn Code, and Discord Name are required.", true);
+                showFormMessage("Car Name, Spawn Code, and Discord Name are required.", true);
                 return;
             }
 
@@ -223,7 +435,6 @@
             toggleLoading(true);
 
             try {
-                // 1. Check if the car already exists by standardized name or code
                 const carsRef = collection(db, PUBLIC_CARS_COLLECTION_PATH);
 
                 let existingCarDoc = null;
@@ -234,7 +445,6 @@
                 const snapshotByName = await getDocs(qByName);
 
                 if (!snapshotByName.empty) {
-                    // Found by name
                     existingCarDoc = snapshotByName.docs[0];
                     carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
                 } else {
@@ -247,7 +457,7 @@
                     }
                 }
 
-                // --- CRITICAL FIX: Use client-side timestamp (Date.now()) inside the array ---
+                // CRITICAL FIX: Use client-side timestamp (Date.now()) inside the array
                 const newSubmission = {
                     userId: userId,
                     discordName: discordName,
@@ -262,7 +472,7 @@
                     const alreadySubmitted = existingData.submissions.some(s => s.userId === userId && s.discordName === discordName);
 
                     if (alreadySubmitted) {
-                        showMessage(`You (User ID: ${userId}) have already submitted this car under Discord name '${discordName}'. Count not updated.`, false);
+                        showFormMessage(`You (User ID: ${userId}) have already submitted this car under Discord name '${discordName}'. Count not updated.`, false);
                         toggleLoading(false);
                         return;
                     }
@@ -270,37 +480,35 @@
                     await updateDoc(carDocRef, {
                         count: existingData.count + 1,
                         submissions: arrayUnion(newSubmission),
-                        // Only update the image if the existing one is missing and a new one is provided
                         imageUrl: existingData.imageUrl || imageUrl,
-                        updatedAt: serverTimestamp() // Use serverTimestamp for the top-level field
+                        updatedAt: serverTimestamp() 
                     });
 
-                    showMessage(`Car '${carName}' already exists. Submission count updated to x${existingData.count + 1}!`, false);
+                    showFormMessage(`Car '${carName}' already exists. Submission count updated to x${existingData.count + 1}!`, false);
 
                 } else {
                     // 3. If Car is New (Create)
                     const newCarData = {
-                        // Save standardized (lowercase) versions for future searches
                         name: searchName,
                         code: searchCode,
                         imageUrl: imageUrl,
                         count: 1,
-                        // The submissions array now correctly uses Date.now()
                         submissions: [newSubmission], 
-                        createdAt: serverTimestamp(), // Use serverTimestamp for the top-level field
-                        updatedAt: serverTimestamp() // Use serverTimestamp for the top-level field
+                        createdAt: serverTimestamp(), 
+                        updatedAt: serverTimestamp() 
                     };
 
                     await addDoc(carsRef, newCarData);
-                    showMessage(`New car '${carName}' submitted successfully!`, false);
+                    showFormMessage(`New car '${carName}' submitted successfully!`, false);
                 }
 
                 // Clear form fields
                 form.reset();
+                aiImageUrlInput.value = ''; // Also clear the AI lookup image URL
 
             } catch (error) {
                 console.error("Error submitting car:", error);
-                showMessage(`Failed to submit car: ${error.message}`, true);
+                showFormMessage(`Failed to submit car: ${error.message}`, true);
             } finally {
                 toggleLoading(false);
             }
@@ -310,7 +518,7 @@
         // --- 3. REAL-TIME DATA LISTENER AND RENDERING ---
 
         function renderCarList(cars) {
-            currentCarData = cars; // Store the latest data globally for export
+            currentCarData = cars; 
             carList.innerHTML = '';
             loader.classList.add('hidden');
 
@@ -365,7 +573,6 @@
         function startRealtimeListener() {
             const q = collection(db, PUBLIC_CARS_COLLECTION_PATH);
 
-            // Set up the real-time listener
             onSnapshot(q, (snapshot) => {
                 const cars = [];
                 snapshot.forEach((doc) => {
@@ -375,37 +582,33 @@
             }, (error) => {
                 console.error("Error fetching real-time data: ", error);
                 loader.classList.add('hidden');
-                showMessage("Failed to load car list in real-time.", true);
+                showFormMessage("Failed to load car list in real-time.", true);
             });
         }
         
         // --- 4. EXPORT TO CSV LOGIC ---
         function exportToCsv() {
             if (!currentCarData || currentCarData.length === 0) {
-                showMessage("No data to export yet!", true);
+                showFormMessage("No data to export yet!", true);
                 return;
             }
 
-            // CSV Header
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "Car Name,Spawn Code,Count,Submissions (Discord Names)\n";
 
-            // CSV Rows
             currentCarData.forEach(car => {
-                const discordNames = car.submissions.map(s => s.discordName).join("; "); // Separated by semicolon within the CSV cell
-                // Escape quotes in data to prevent CSV breakage
+                const discordNames = car.submissions.map(s => s.discordName).join("; ");
                 const safeName = car.name.replace(/"/g, '""');
                 const safeCode = car.code.replace(/"/g, '""');
                 
                 csvContent += `"${safeName}","${safeCode}",${car.count},"${discordNames}"\n`;
             });
 
-            // Create download link
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", "car_spawn_codes_export.csv");
-            document.body.appendChild(link); // Required for FF
+            document.body.appendChild(link);
             
             link.click();
             document.body.removeChild(link);
