@@ -200,36 +200,46 @@
                 return;
             }
 
-            const carName = document.getElementById('car-name').value.trim();
-            const spawnCode = document.getElementById('spawn-code').value.trim();
+            // Get raw input values
+            const rawCarName = document.getElementById('car-name').value;
+            const rawSpawnCode = document.getElementById('spawn-code').value;
             const imageUrl = document.getElementById('image-url').value.trim();
-            const discordName = document.getElementById('discord-name').value.trim();
+            const rawDiscordName = document.getElementById('discord-name').value;
 
+            // Normalize and validate inputs
+            const carName = rawCarName.trim();
+            const spawnCode = rawSpawnCode.trim();
+            const discordName = rawDiscordName.trim();
+            
             if (!carName || !spawnCode || !discordName) {
                 showMessage("Car Name, Spawn Code, and Discord Name are required.", true);
                 return;
             }
 
+            // Standardize the fields used for searching and saving to lowercase for case-insensitivity
+            const searchName = carName.toLowerCase();
+            const searchCode = spawnCode.toLowerCase();
+
             toggleLoading(true);
 
             try {
-                // 1. Check if the car already exists by name or code
+                // 1. Check if the car already exists by standardized name or code
                 const carsRef = collection(db, PUBLIC_CARS_COLLECTION_PATH);
-
-                // We prioritize searching by name for checking duplicates
-                const q = query(carsRef, where('name', '==', carName));
-                const snapshot = await getDocs(q);
 
                 let existingCarDoc = null;
                 let carDocRef = null;
 
-                if (!snapshot.empty) {
+                // Priority 1: Search by standardized name
+                const qByName = query(carsRef, where('name', '==', searchName));
+                const snapshotByName = await getDocs(qByName);
+
+                if (!snapshotByName.empty) {
                     // Found by name
-                    existingCarDoc = snapshot.docs[0];
+                    existingCarDoc = snapshotByName.docs[0];
                     carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
                 } else {
-                    // If not found by name, check by code
-                    const qByCode = query(carsRef, where('code', '==', spawnCode));
+                    // Priority 2: Search by standardized code
+                    const qByCode = query(carsRef, where('code', '==', searchCode));
                     const snapshotByCode = await getDocs(qByCode);
                     if (!snapshotByCode.empty) {
                         existingCarDoc = snapshotByCode.docs[0];
@@ -237,11 +247,11 @@
                     }
                 }
 
-                // --- FIX: Use client-side timestamp (Date.now()) inside the array ---
+                // --- CRITICAL FIX: Use client-side timestamp (Date.now()) inside the array ---
                 const newSubmission = {
                     userId: userId,
                     discordName: discordName,
-                    timestamp: Date.now() // Use client-side timestamp for array item
+                    timestamp: Date.now() 
                 };
 
                 if (existingCarDoc) {
@@ -270,11 +280,13 @@
                 } else {
                     // 3. If Car is New (Create)
                     const newCarData = {
-                        name: carName,
-                        code: spawnCode,
+                        // Save standardized (lowercase) versions for future searches
+                        name: searchName,
+                        code: searchCode,
                         imageUrl: imageUrl,
                         count: 1,
-                        submissions: [newSubmission],
+                        // The submissions array now correctly uses Date.now()
+                        submissions: [newSubmission], 
                         createdAt: serverTimestamp(), // Use serverTimestamp for the top-level field
                         updatedAt: serverTimestamp() // Use serverTimestamp for the top-level field
                     };
@@ -333,8 +345,9 @@
 
                         <!-- Right: Details -->
                         <div class="flex-grow">
-                            <h3 class="text-xl font-bold text-white mb-1">${car.name}</h3>
-                            <p class="text-gray-400 mb-2">Code: <span class="font-mono text-[#58a6ff]">${car.code}</span></p>
+                            <!-- Display the name exactly as saved (lowercase) -->
+                            <h3 class="text-xl font-bold text-white mb-1">${car.name.toUpperCase()}</h3>
+                            <p class="text-gray-400 mb-2">Code: <span class="font-mono text-[#58a6ff]">${car.code.toUpperCase()}</span></p>
 
                             <div class="mt-2">
                                 <p class="text-xs font-semibold text-gray-400 mb-1">Submitted By:</p>
