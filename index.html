@@ -45,6 +45,11 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(2px);
+        }
     </style>
 </head>
 <body>
@@ -146,7 +151,7 @@
                     
                     <div class="bg-[#161b22] p-4 rounded-xl shadow-lg border border-[#30363d] mb-6 flex flex-col md:flex-row gap-4 items-center">
                         <div class="relative w-full md:flex-grow">
-                             <input type="text" id="admin-search" placeholder="Search by Car Name or Code..." 
+                             <input type="text" id="admin-search" placeholder="Search by Car, Code, or Submitter..." 
                                class="w-full pl-10 px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-600">
                              <i data-lucide="search" class="absolute left-3 top-2.5 text-gray-500 w-4 h-4"></i>
                         </div>
@@ -170,16 +175,66 @@
                 </div>
             </div>
         </div>
+
+        <!-- EDIT MODAL -->
+        <div id="edit-modal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+            <div class="bg-[#161b22] w-full max-w-lg rounded-xl shadow-2xl border border-[#30363d] transform transition-all">
+                <div class="p-6 border-b border-[#30363d] flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-white">Edit Car Entry</h3>
+                    <button id="close-modal-btn" class="text-gray-400 hover:text-white">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto list-container">
+                    <input type="hidden" id="edit-car-id">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Car Name</label>
+                        <input type="text" id="edit-car-name" class="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Spawn Code</label>
+                            <input type="text" id="edit-car-code" class="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Count (Override)</label>
+                            <input type="number" id="edit-car-count" class="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Image URL</label>
+                        <input type="text" id="edit-car-image" class="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                    </div>
+                    
+                    <!-- REMOVED GEMINI FEATURE SECTION -->
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Submitters (Comma Separated)</label>
+                        <textarea id="edit-car-submitters" rows="4" class="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white text-sm" placeholder="User1, User2, User3"></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Editing this list updates the "Found By" section. Existing User IDs are preserved where possible.</p>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-[#30363d] bg-[#0d1117]/50 rounded-b-xl flex justify-end gap-3">
+                    <button id="cancel-edit-btn" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">Cancel</button>
+                    <button id="save-edit-btn" class="px-4 py-2 text-sm font-medium bg-[#58a6ff] text-white rounded-lg hover:bg-[#79a9e3] shadow-md transition-colors flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, addDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, serverTimestamp, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- (REMOVED) GEMINI API SETUP ---
+
         // --- FIREBASE CONFIGURATION ---
-        // Fallback to hardcoded values if environment variables are missing (Fixes "Firebase config missing" error)
-        
         const HARDCODED_APP_ID = 'car-data-b1d46';
         const HARDCODED_CONFIG = {
             apiKey: "AIzaSyCKrGREVdOXkRiUByq4C3MGX1G9wcN7YcM",
@@ -189,6 +244,9 @@
             messagingSenderId: "640847189726",
             appId: "1:640847189726:web:7b52539727a517e300944f"
         };
+        // --- DEFAULT IMAGE ---
+        const DEFAULT_IMAGE_URL = "https://img.freepik.com/free-vector/hand-drawn-loser-emoji-illustration_52683-149240.jpg";
+
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : HARDCODED_APP_ID;
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : HARDCODED_CONFIG;
@@ -199,7 +257,6 @@
         const EXPORT_PASSWORD = "givemethisnow"; // Simple admin password
 
         // --- FIRESTORE PATHS ---
-        // Uses the correct appId based on the environment (local vs embedded)
         const PUBLIC_CARS_COLLECTION_PATH = `artifacts/${appId}/public/data/cars`;
         const ADMIN_DOC_PATH = `artifacts/${appId}/public/data/admin_settings`; 
         const ADMIN_CONFIG_ID = "config";
@@ -242,6 +299,22 @@
         const loginMessageBox = document.getElementById('login-message-box');
         const adminLogoutButton = document.getElementById('admin-logout-button');
 
+        // Modal Elements
+        const editModal = document.getElementById('edit-modal');
+        const editCarIdInput = document.getElementById('edit-car-id');
+        const editCarNameInput = document.getElementById('edit-car-name');
+        const editCarCodeInput = document.getElementById('edit-car-code');
+        const editCarCountInput = document.getElementById('edit-car-count');
+        const editCarImageInput = document.getElementById('edit-car-image');
+        // const editCarDescriptionInput = document.getElementById('edit-car-description'); // REMOVED
+        const editCarSubmittersInput = document.getElementById('edit-car-submitters');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const saveEditBtn = document.getElementById('save-edit-btn');
+        // const generateDescriptionBtn = document.getElementById('generate-description-btn'); // REMOVED
+        // const genLoadingSpinner = document.getElementById('gen-loading-spinner'); // REMOVED
+        // const genButtonText = document.getElementById('gen-button-text'); // REMOVED
+
         let isUserAdmin = false;
         let activeView = 'public';
 
@@ -281,7 +354,7 @@
                 // Initialize Icons
                 if (window.lucide) window.lucide.createIcons();
 
-                // Auth Logic: Custom Token -> Anonymous
+                // Auth Logic
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
@@ -291,7 +364,6 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        // Display truncated User ID
                         userInfo.textContent = `UID: ${userId.substring(0, 6)}...`;
                         checkAdminStatus(userId);
                         startRealtimeListener(userId);
@@ -314,6 +386,12 @@
                 tabPublic.addEventListener('click', () => switchView('public'));
                 tabAdmin.addEventListener('click', () => switchView('admin'));
 
+                // Modal Listeners
+                closeModalBtn.addEventListener('click', closeEditModal);
+                cancelEditBtn.addEventListener('click', closeEditModal);
+                saveEditBtn.addEventListener('click', saveCarEdits);
+                // generateDescriptionBtn.addEventListener('click', generateDescription); // REMOVED
+
             } catch (error) {
                 console.error("Firebase init error:", error);
                 showFormMessage(`System Error: ${error.message}`, true);
@@ -327,7 +405,7 @@
                 mainTitle.textContent = "Admin Management";
                 mainTitle.classList.remove('text-[#58a6ff]');
                 mainTitle.classList.add('text-red-400');
-                mainSubtitle.textContent = "Manage submissions, search, and delete entries.";
+                mainSubtitle.textContent = "Manage submissions, search, edit, and delete entries.";
             } else {
                 mainTitle.textContent = "Community Car Code Submissions";
                 mainTitle.classList.remove('text-red-400');
@@ -375,7 +453,6 @@
         async function isPermanentAdmin(uid) {
             if (!db) return false;
             try {
-                // Checking admin status from public/data/admin_settings/config
                 const adminDocRef = doc(db, ADMIN_DOC_PATH, ADMIN_CONFIG_ID);
                 const adminDocSnap = await getDoc(adminDocRef);
 
@@ -386,7 +463,6 @@
                 }
                 return false;
             } catch (error) {
-                // Fails silently if doc doesn't exist (normal for first run)
                 return false;
             }
         }
@@ -420,6 +496,88 @@
             switchView('public');
             showFormMessage("Logged out of admin.", false);
         }
+        
+        // --- (REMOVED) GEMINI DESCRIPTION GENERATION ---
+
+        // --- EDITING LOGIC ---
+
+        function openEditModal(car) {
+            editCarIdInput.value = car.id;
+            editCarNameInput.value = car.name || "";
+            editCarCodeInput.value = car.code || "";
+            editCarCountInput.value = car.count || 0;
+            editCarImageInput.value = car.imageUrl || "";
+            // editCarDescriptionInput.value = car.description || ""; // REMOVED
+            
+            // Map submitters to a CSV string
+            const names = (car.submissions || []).map(s => s.discordName).join(', ');
+            editCarSubmittersInput.value = names;
+
+            editModal.classList.remove('hidden');
+            editModal.classList.add('flex');
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function closeEditModal() {
+            editModal.classList.add('hidden');
+            editModal.classList.remove('flex');
+        }
+
+        async function saveCarEdits() {
+            if (!isUserAdmin) return;
+            const carId = editCarIdInput.value;
+            if (!carId) return;
+
+            const newName = editCarNameInput.value.trim();
+            const newCode = editCarCodeInput.value.trim();
+            const newCount = parseInt(editCarCountInput.value) || 0;
+            const newImage = editCarImageInput.value.trim() || DEFAULT_IMAGE_URL; // Use default if cleared
+            // const newDescription = editCarDescriptionInput.value.trim(); // REMOVED
+            const newSubmittersText = editCarSubmittersInput.value;
+
+            // Process submitters: Keep existing metadata if name matches, else create new
+            const car = currentCarData.find(c => c.id === carId);
+            const oldSubmissions = car ? (car.submissions || []) : [];
+            
+            // Parse CSV input
+            const newNamesList = newSubmittersText.split(',').map(n => n.trim()).filter(n => n.length > 0);
+            
+            const newSubmissionsArray = newNamesList.map(name => {
+                // Try to find an existing entry for this name to preserve userId/timestamp
+                const existing = oldSubmissions.find(s => s.discordName.toLowerCase() === name.toLowerCase());
+                if (existing) {
+                    return existing;
+                } else {
+                    // Create new entry
+                    return {
+                        userId: 'admin-edit',
+                        discordName: name,
+                        timestamp: Date.now()
+                    };
+                }
+            });
+
+            try {
+                const carRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, carId);
+                await updateDoc(carRef, {
+                    name: newName,
+                    code: newCode,
+                    count: newCount,
+                    imageUrl: newImage,
+                    // description: newDescription, // REMOVED
+                    submissions: newSubmissionsArray,
+                    updatedAt: serverTimestamp()
+                });
+                
+                showAdminMessage(`Successfully updated '${newName}'`, false);
+                closeEditModal();
+            } catch (error) {
+                console.error("Update failed", error);
+                // Using console.error instead of alert
+                console.error("Failed to save changes: " + error.message);
+                showAdminMessage("Failed to save changes: " + error.message, true);
+            }
+        }
 
         // --- DATA SUBMISSION ---
 
@@ -433,7 +591,7 @@
             const carName = carNameInput.value.trim();
             const spawnCode = spawnCodeInput.value.trim();
             const discordName = discordNameInput.value.trim();
-            const imageUrl = imageUrlInput.value.trim();
+            const submittedImageUrl = imageUrlInput.value.trim(); // Use new variable
             
             if (!carName || !spawnCode || !discordName) {
                 showFormMessage("Fields marked with * are required.", true);
@@ -472,16 +630,20 @@
                     carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
                     const existingData = existingCarDoc.data();
                     
-                    // Duplicate submission check
                     const alreadySubmitted = existingData.submissions && existingData.submissions.some(s => s.discordName === discordName);
 
                     if (alreadySubmitted) {
                         showFormMessage(`You have already submitted this car as '${discordName}'.`, false);
                     } else {
+                        // Logic to update image: Prioritize existing non-default. If existing is default, use new. If new is empty, keep default.
+                        const finalImageUrl = (existingData.imageUrl && existingData.imageUrl !== DEFAULT_IMAGE_URL) 
+                            ? existingData.imageUrl 
+                            : (submittedImageUrl || DEFAULT_IMAGE_URL);
+
                         await updateDoc(carDocRef, {
                             count: (existingData.count || 0) + 1,
                             submissions: arrayUnion(newSubmission),
-                            imageUrl: (existingData.imageUrl && existingData.imageUrl.length > 5) ? existingData.imageUrl : imageUrl,
+                            imageUrl: finalImageUrl,
                             updatedAt: serverTimestamp() 
                         });
                         showFormMessage(`Added your confirmation to existing car '${carName}'!`, false);
@@ -490,7 +652,8 @@
                     const newCarData = {
                         name: searchName,
                         code: searchCode,
-                        imageUrl: imageUrl,
+                        imageUrl: submittedImageUrl || DEFAULT_IMAGE_URL, // Use default if new submission is empty
+                        // description: "", // REMOVED
                         count: 1,
                         submissions: [newSubmission], 
                         createdAt: serverTimestamp(), 
@@ -536,15 +699,24 @@
         // --- RENDERING ---
 
         function copyToClipboard(text) {
+            // Use a modal/toast notification instead of alert
             const input = document.createElement('textarea');
             input.value = text;
             document.body.appendChild(input);
             input.select();
             document.execCommand('copy');
             document.body.removeChild(input);
-            alert(`Copied code: ${text}`);
+            
+            // Show a temporary message
+            const copyMessage = document.createElement('div');
+            copyMessage.textContent = `Copied code: ${text}`;
+            copyMessage.className = 'fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            document.body.appendChild(copyMessage);
+            setTimeout(() => {
+                copyMessage.remove();
+            }, 2000);
         }
-        window.copyCode = copyToClipboard; // Expose to global for inline onclick
+        window.copyCode = copyToClipboard; 
 
         function renderPublicCarList(cars) {
             publicCarList.innerHTML = '';
@@ -565,14 +737,19 @@
                     .join(' ');
 
                 const displayCode = (car.code || "???").toUpperCase();
+                // const descriptionHtml = car.description  // REMOVED
+                //     ? `<p class="text-sm text-gray-400 mt-1 italic border-l-2 border-purple-500 pl-2">${car.description}</p>`
+                //     : '';
+                
+                const imageUrl = car.imageUrl || DEFAULT_IMAGE_URL;
 
                 const cardHtml = `
                     <div class="flex flex-col sm:flex-row bg-[#0d1117] p-4 rounded-xl shadow-xl border border-[#30363d] space-y-3 sm:space-y-0 sm:space-x-4 hover:border-[#58a6ff]/50 transition-colors">
                         <div class="flex-shrink-0 relative w-full sm:w-28 h-28 rounded-lg overflow-hidden border border-[#30363d] bg-black">
-                            <img src="${car.imageUrl || ''}" 
+                            <img src="${imageUrl}" 
                                  alt="${car.name}" 
                                  class="w-full h-full object-cover"
-                                 onerror="this.src='https://placehold.co/112x112/161b22/c9d1d9?text=Car';"
+                                 onerror="this.src='${DEFAULT_IMAGE_URL}';"
                             >
                             <span class="absolute top-0 right-0 bg-[#58a6ff] text-white font-bold text-xs px-2 py-1 rounded-bl-lg">
                                 x${car.count}
@@ -586,6 +763,9 @@
                                     <i data-lucide="copy" class="w-4 h-4"></i>
                                 </button>
                             </div>
+                            
+                            <!-- REMOVED -->
+
                             <div class="mt-2">
                                 <p class="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-wider">Found By:</p>
                                 <div class="flex flex-wrap gap-1 max-h-12 overflow-y-auto custom-scrollbar">
@@ -604,13 +784,21 @@
             const searchTerm = searchInput.value.toLowerCase().trim();
             adminCarList.innerHTML = '';
             
-            const filteredCars = cars.filter(car => 
-                (car.name || "").toLowerCase().includes(searchTerm) || 
-                (car.code || "").toLowerCase().includes(searchTerm)
-            );
+            const filteredCars = cars.filter(car => {
+                if (!searchTerm) return true; // Show all if search is empty
+                
+                const nameMatch = (car.name || "").toLowerCase().includes(searchTerm);
+                const codeMatch = (car.code || "").toLowerCase().includes(searchTerm);
+                const submitterMatch = (car.submissions || []).some(sub => 
+                    (sub.discordName || "").toLowerCase().includes(searchTerm)
+                );
+                
+                return nameMatch || codeMatch || submitterMatch;
+            });
 
             if (filteredCars.length === 0) {
                 adminNoCarsMessage.classList.remove('hidden');
+                adminNoCarsMessage.textContent = searchTerm ? "No cars match your filter." : "No cars found in the database.";
                 return;
             }
             adminNoCarsMessage.classList.add('hidden');
@@ -624,9 +812,12 @@
                             <h3 class="text-lg font-bold text-white">${(car.name || "Unknown").toUpperCase()}</h3>
                             <p class="text-gray-400 text-sm">Code: <span class="font-mono text-[#58a6ff]">${(car.code || "").toUpperCase()}</span> | Count: ${car.count}</p>
                         </div>
-                        <div class="flex-shrink-0 pt-1 w-full sm:w-auto">
-                            <button data-car-id="${car.id}" class="delete-btn w-full bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-800 font-semibold py-2 px-4 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+                        <div class="flex-shrink-0 pt-1 w-full sm:w-auto flex gap-2">
+                            <button data-car-id="${car.id}" class="edit-btn flex-1 bg-blue-900/20 hover:bg-blue-600 text-blue-500 hover:text-white border border-blue-800 font-semibold py-2 px-3 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button data-car-id="${car.id}" class="delete-btn flex-1 bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-800 font-semibold py-2 px-3 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
@@ -636,11 +827,24 @@
             
             if(window.lucide) window.lucide.createIcons();
             
-            // Attach delete listeners
+            // Attach Listeners
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const carId = e.currentTarget.dataset.carId;
+                    const car = currentCarData.find(c => c.id === carId);
+                    if(car) openEditModal(car);
+                });
+            });
+
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const carId = e.currentTarget.dataset.carId;
-                    if(confirm("Permanently delete this car entry?")) {
+                    const carName = currentCarData.find(c => c.id === carId)?.name || "this entry";
+                    
+                    // Custom confirm modal would be better, but this avoids `confirm()`
+                    const confirmation = prompt(`Type "DELETE" to permanently delete "${carName}". This cannot be undone.`);
+                    
+                    if(confirmation === "DELETE") { 
                         try {
                             await deleteDoc(doc(db, PUBLIC_CARS_COLLECTION_PATH, carId));
                             showAdminMessage("Deleted successfully.", false);
@@ -648,6 +852,8 @@
                             console.error(err);
                             showAdminMessage("Delete failed.", true);
                         }
+                    } else {
+                        showAdminMessage("Delete cancelled.", false);
                     }
                 });
             });
@@ -659,19 +865,23 @@
                 return;
             }
             
-            // Prompt for security
+            // Using prompt for confirmation, though a custom modal is recommended for production
             const inputPassword = prompt("Confirm Export Password:");
             if (inputPassword !== EXPORT_PASSWORD) {
-                showAdminMessage("Wrong password.", true);
+                showAdminMessage("Wrong password. Export cancelled.", true);
                 return;
             }
 
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "ID,Name,Code,Count,Submitters\n"; 
+            csvContent += "ID,Name,Code,Count,Submitters\n"; // Removed Description
 
             currentCarData.forEach(car => {
                 const names = (car.submissions || []).map(s => s.discordName).join("; ");
-                csvContent += `"${car.id}","${(car.name||"").replace(/"/g, '""')}","${(car.code||"").replace(/"/g, '""')}",${car.count},"${names}"\n`;
+                const safeName = (car.name||"").replace(/"/g, '""');
+                const safeCode = (car.code||"").replace(/"/g, '""');
+                // const safeDesc = (car.description||"").replace(/"/g, '""'); // REMOVED
+
+                csvContent += `"${car.id}","${safeName}","${safeCode}",${car.count},"${names}"\n`; // Removed Description
             });
 
             const encodedUri = encodeURI(csvContent);
