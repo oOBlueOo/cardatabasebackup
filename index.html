@@ -237,10 +237,11 @@
                     }
                 }
 
+                // --- FIX: Use client-side timestamp (Date.now()) inside the array ---
                 const newSubmission = {
                     userId: userId,
                     discordName: discordName,
-                    timestamp: serverTimestamp()
+                    timestamp: Date.now() // Use client-side timestamp for array item
                 };
 
                 if (existingCarDoc) {
@@ -261,7 +262,7 @@
                         submissions: arrayUnion(newSubmission),
                         // Only update the image if the existing one is missing and a new one is provided
                         imageUrl: existingData.imageUrl || imageUrl,
-                        updatedAt: serverTimestamp()
+                        updatedAt: serverTimestamp() // Use serverTimestamp for the top-level field
                     });
 
                     showMessage(`Car '${carName}' already exists. Submission count updated to x${existingData.count + 1}!`, false);
@@ -274,8 +275,8 @@
                         imageUrl: imageUrl,
                         count: 1,
                         submissions: [newSubmission],
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
+                        createdAt: serverTimestamp(), // Use serverTimestamp for the top-level field
+                        updatedAt: serverTimestamp() // Use serverTimestamp for the top-level field
                     };
 
                     await addDoc(carsRef, newCarData);
