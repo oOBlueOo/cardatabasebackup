@@ -177,20 +177,30 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, addDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, serverTimestamp, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- FIREBASE CONFIGURATION (ENVIRONMENT AWARE) ---
-        // Using provided environment variables for security and compatibility
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // --- FIREBASE CONFIGURATION ---
+        // Fallback to hardcoded values if environment variables are missing (Fixes "Firebase config missing" error)
+        
+        const HARDCODED_APP_ID = 'car-data-b1d46';
+        const HARDCODED_CONFIG = {
+            apiKey: "AIzaSyCKrGREVdOXkRiUByq4C3MGX1G9wcN7YcM",
+            authDomain: "car-data-b1d46.firebaseapp.com",
+            projectId: "car-data-b1d46",
+            storageBucket: "car-data-b1d46.firebasestorage.app",
+            messagingSenderId: "640847189726",
+            appId: "1:640847189726:web:7b52539727a517e300944f"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : HARDCODED_APP_ID;
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : HARDCODED_CONFIG;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         let db, auth, userId;
         let currentCarData = [];
         const EXPORT_PASSWORD = "givemethisnow"; // Simple admin password
 
-        // --- FIRESTORE PATHS (STRICT COMPLIANCE) ---
-        // RULE 1 Compliance: /artifacts/{appId}/public/data/{collectionName}
+        // --- FIRESTORE PATHS ---
+        // Uses the correct appId based on the environment (local vs embedded)
         const PUBLIC_CARS_COLLECTION_PATH = `artifacts/${appId}/public/data/cars`;
-        // Admin config moved to a compliant public data path (permissions handled by app logic in this demo)
         const ADMIN_DOC_PATH = `artifacts/${appId}/public/data/admin_settings`; 
         const ADMIN_CONFIG_ID = "config";
 
@@ -272,7 +282,6 @@
                 if (window.lucide) window.lucide.createIcons();
 
                 // Auth Logic: Custom Token -> Anonymous
-                // IMPORTANT: Await auth before setting up listeners
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
