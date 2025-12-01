@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Community Car Code Tracker</title>
-    <!-- Load Tailwind CSS -->
+    <title>Community Car Code Tracker & Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -15,15 +15,35 @@
             color: #c9d1d9;
         }
         /* Custom scrollbar style for the list */
-        .car-list-container::-webkit-scrollbar {
+        .list-container::-webkit-scrollbar {
             width: 8px;
         }
-        .car-list-container::-webkit-scrollbar-thumb {
+        .list-container::-webkit-scrollbar-thumb {
             background-color: #30363d;
             border-radius: 4px;
         }
-        .car-list-container::-webkit-scrollbar-track {
+        .list-container::-webkit-scrollbar-track {
             background: #161b22;
+        }
+        .tab-button {
+            transition: all 0.2s;
+        }
+        .tab-active {
+            border-bottom: 3px solid #58a6ff;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .admin-tab-active {
+            border-bottom: 3px solid #ef4444; /* red-500 */
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -31,450 +51,386 @@
 
     <div id="app" class="min-h-screen p-4 md:p-8">
         <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-[#58a6ff] mb-2">Community Car Code Submissions</h1>
-            <p class="text-gray-400">Submit your finds! Data is stored in a cloud database and can be exported below.</p>
-            <div id="user-info" class="mt-4 text-sm text-gray-500">
-                <!-- User ID will be displayed here -->
+            <h1 id="main-title" class="text-4xl font-extrabold text-[#58a6ff] mb-2">Community Car Code Submissions</h1>
+            <p id="main-subtitle" class="text-gray-400">Submit your finds! Data is stored in a cloud database.</p>
+            <div id="user-info" class="mt-4 text-xs text-gray-600 font-mono">
+                Initializing...
             </div>
         </header>
 
-        <!-- AI Lookup Section -->
-        <div class="max-w-xl mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-[#30363d] mb-10">
-            <h2 class="text-2xl font-bold mb-4 text-white flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2 text-yellow-400">
-                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"></path>
-                    <path d="M12 16v-4"></path>
-                    <path d="M12 8h.01"></path>
-                </svg>
-                AI Car Code Suggestion
-            </h2>
-            <div id="ai-lookup-section">
-                <label for="ai-image-url" class="block text-sm font-medium text-gray-400 mb-1">Paste Car Image URL (e.g., Garage Screenshot)</label>
-                <div class="flex space-x-2">
-                    <input type="url" id="ai-image-url" placeholder="https://doschdesign.com/images/image/Generic_02.jpg" class="flex-grow px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-yellow-400 focus:border-yellow-400 text-white">
-                    <button type="button" id="generate-button" class="flex-shrink-0 py-2 px-4 bg-yellow-600 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-700 transition duration-200 flex items-center">
-                        <span id="generate-text">Generate Info</span>
-                        <span id="ai-loading-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full ml-2"></span>
-                    </button>
-                </div>
-                <p id="ai-message-box" class="mt-3 text-sm font-medium"></p>
+        <nav class="max-w-4xl mx-auto mb-8 border-b border-[#30363d] flex justify-center">
+            <button id="tab-public" data-view="public" class="tab-button tab-active px-6 py-3 text-lg text-gray-400 hover:text-white flex items-center gap-2">
+                <i data-lucide="list"></i> Community Tracker
+            </button>
+            <button id="tab-admin" data-view="admin" class="tab-button px-6 py-3 text-lg text-gray-400 hover:text-white flex items-center gap-2">
+                <i data-lucide="shield"></i> Admin Access
+            </button>
+        </nav>
+
+        <div id="content-container" class="max-w-4xl mx-auto">
+            
+            <!-- PUBLIC VIEW -->
+            <div id="public-view" class="active-view fade-in">
                 
-                <!-- NEW: Container for multiple AI suggestions -->
-                <div id="ai-results" class="mt-4 p-3 bg-[#0d1117] border border-[#30363d] rounded-lg hidden">
-                    <p class="text-yellow-400 font-semibold mb-2">AI Suggestions Found:</p>
-                    <div id="suggestions-list" class="space-y-3">
-                        <!-- Suggestions will be dynamically injected here, each with a 'Use' button -->
-                    </div>
+                <!-- Submission Form -->
+                <div class="max-w-xl mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-[#30363d] mb-10">
+                    <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="text-[#58a6ff]"></i> Manual Car Submission
+                    </h2>
+                    <form id="submission-form">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="car-name" class="block text-sm font-medium text-gray-400 mb-1">Car Name (e.g., Supra MK4)</label>
+                                <input type="text" id="car-name" required placeholder="Name" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white placeholder-gray-600">
+                            </div>
+                            <div>
+                                <label for="spawn-code" class="block text-sm font-medium text-gray-400 mb-1">Spawn Code (e.g., SPRA4)</label>
+                                <input type="text" id="spawn-code" required placeholder="Code" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white placeholder-gray-600">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label for="image-url" class="block text-sm font-medium text-gray-400 mb-1">Picture URL (Optional)</label>
+                            <input type="url" id="image-url" placeholder="https://i.imgur.com/car.jpg" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white placeholder-gray-600">
+                        </div>
+                        <div class="mt-4">
+                            <label for="discord-name" class="block text-sm font-medium text-gray-400 mb-1">Your Discord Name (Mandatory)</label>
+                            <input type="text" id="discord-name" required placeholder="YourName#1234" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white placeholder-gray-600">
+                        </div>
+                        <button type="submit" id="submit-button" class="w-full mt-6 py-3 px-4 bg-[#58a6ff] text-white font-semibold rounded-lg shadow-md hover:bg-[#79a9e3] transition duration-200 flex justify-center items-center gap-2">
+                            <span id="button-text">Submit Car</span>
+                            <span id="loading-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full"></span>
+                        </button>
+                        <p id="form-message-box" class="mt-3 text-sm text-center font-medium min-h-[20px]"></p>
+                    </form>
                 </div>
+
+                <!-- Car List -->
+                <div id="public-car-list-section" class="max-w-4xl mx-auto">
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-3xl font-bold text-white">Confirmed Submissions</h2>
+                        <span id="car-count-badge" class="bg-[#30363d] text-gray-300 px-3 py-1 rounded-full text-sm font-mono">0 Cars</span>
+                    </div>
+                    
+                    <div id="car-list-loader" class="text-center p-8">
+                        <div class="animate-spin h-8 w-8 border-4 border-[#58a6ff] border-t-transparent rounded-full mx-auto mb-3"></div>
+                        Loading Data...
+                    </div>
+                    
+                    <div id="public-car-list" class="list-container bg-[#161b22] p-4 rounded-xl shadow-lg border border-[#30363d] max-h-[60vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Cars injected here -->
+                    </div>
+                    <p id="public-no-cars-message" class="hidden text-center text-gray-500 mt-4">No cars have been submitted yet. Be the first!</p>
+                </div>
+            </div>
+
+            <!-- ADMIN VIEW -->
+            <div id="admin-view" class="hidden fade-in">
                 
-            </div>
-        </div>
-        
-        <!-- Submission Form -->
-        <div class="max-w-xl mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-[#30363d] mb-10">
-            <h2 class="text-2xl font-bold mb-4 text-white">Manual Car Submission</h2>
-            <form id="submission-form">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Car Name -->
-                    <div>
-                        <label for="car-name" class="block text-sm font-medium text-gray-400 mb-1">Car Name (e.g., Supra MK4)</label>
-                        <input type="text" id="car-name" required placeholder="Name" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                <div id="admin-login-area" class="max-w-md mx-auto bg-[#161b22] p-6 rounded-xl shadow-2xl border border-red-500/50 mb-10">
+                    <h2 class="text-2xl font-bold mb-4 text-red-400 text-center flex justify-center items-center gap-2">
+                        <i data-lucide="lock"></i> Admin Access
+                    </h2>
+                    <p id="auth-text" class="text-center text-yellow-400 mb-4 text-sm">Enter password or ensure your UID is in the database.</p>
+                    <form id="admin-login-form">
+                        <input type="password" id="admin-password-input" placeholder="Admin Password" required 
+                               class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-red-500 focus:border-red-500 text-white mb-4 placeholder-gray-600">
+                        <button type="submit" id="admin-login-button" class="w-full py-3 px-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-200">
+                            Log In as Admin
+                        </button>
+                        <p id="login-message-box" class="mt-3 text-sm text-center font-medium min-h-[20px]"></p>
+                    </form>
+                </div>
+
+                <div id="admin-tools-content" class="hidden">
+                    <h2 class="text-3xl font-bold text-white mb-4">Management Tools</h2>
+                    
+                    <div class="bg-[#161b22] p-4 rounded-xl shadow-lg border border-[#30363d] mb-6 flex flex-col md:flex-row gap-4 items-center">
+                        <div class="relative w-full md:flex-grow">
+                             <input type="text" id="admin-search" placeholder="Search by Car Name or Code..." 
+                               class="w-full pl-10 px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-600">
+                             <i data-lucide="search" class="absolute left-3 top-2.5 text-gray-500 w-4 h-4"></i>
+                        </div>
+                        
+                        <div class="flex flex-shrink-0 w-full md:w-auto space-x-2">
+                             <button id="export-csv-button" class="flex-grow md:flex-none bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition duration-200 shadow-md flex items-center justify-center gap-2">
+                                <i data-lucide="download"></i> Export CSV
+                            </button>
+                            <button id="admin-logout-button" class="flex-grow md:flex-none bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition duration-200 shadow-md flex items-center justify-center gap-2">
+                                <i data-lucide="log-out"></i> Log Out
+                            </button>
+                        </div>
                     </div>
+                    <p id="admin-message-box" class="text-sm text-center font-medium mb-4 min-h-[20px]"></p>
 
-                    <!-- Spawn Code -->
-                    <div>
-                        <label for="spawn-code" class="block text-sm font-medium text-gray-400 mb-1">Spawn Code (e.g., SPRA4)</label>
-                        <input type="text" id="spawn-code" required placeholder="Code" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                    <div id="admin-car-list" class="list-container bg-[#161b22] p-4 rounded-xl shadow-lg border border-[#30363d] max-h-[70vh] overflow-y-auto grid grid-cols-1 gap-3">
+                        <!-- Admin items injected here -->
                     </div>
+                    <p id="admin-no-cars-message" class="hidden text-center text-gray-500 mt-4">No cars match your filter.</p>
+
                 </div>
-
-                <!-- Image URL -->
-                <div class="mt-4">
-                    <label for="image-url" class="block text-sm font-medium text-gray-400 mb-1">Picture URL (Optional, for Manual Submission)</label>
-                    <input type="url" id="image-url" placeholder="https://i.imgur.com/car.jpg" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
-                </div>
-
-                <!-- Discord Name -->
-                <div class="mt-4">
-                    <label for="discord-name" class="block text-sm font-medium text-gray-400 mb-1">Your Discord Name (Mandatory)</label>
-                    <input type="text" id="discord-name" required placeholder="YourName#1234" class="w-full px-4 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
-                </div>
-
-                <button type="submit" id="submit-button" class="w-full mt-6 py-3 px-4 bg-[#58a6ff] text-white font-semibold rounded-lg shadow-md hover:bg-[#79a9e3] transition duration-200">
-                    <span id="button-text">Submit Car</span>
-                    <span id="loading-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full mx-auto"></span>
-                </button>
-                <p id="message-box" class="mt-3 text-sm text-center font-medium"></p>
-            </form>
-        </div>
-
-        <!-- Car List Display -->
-        <div class="max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-3xl font-bold text-white">Confirmed Car Submissions</h2>
-                <button id="export-csv-button" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition duration-200 shadow-md">
-                    Export to CSV (for Sheets/Excel)
-                </button>
             </div>
-            <div id="car-list-loader" class="text-center p-8">
-                 <div class="animate-spin h-8 w-8 border-4 border-[#58a6ff] border-t-transparent rounded-full mx-auto mb-3"></div>
-                 Loading Data...
-            </div>
-            <div id="car-list" class="car-list-container bg-[#161b22] p-4 rounded-xl shadow-lg border border-[#30363d] max-h-[60vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Car items will be rendered here -->
-            </div>
-            <p id="no-cars-message" class="hidden text-center text-gray-500 mt-4">No cars have been submitted yet. Be the first!</p>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, addDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, serverTimestamp, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- BEGIN CUSTOM FIREBASE CONFIGURATION ---
-        // Use your actual Project ID for the appId variable
-        const appId = 'car-data-b1d46'; 
-        
-        // Your specific Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCKrGREVdOXkRiUByq4C3MGX1G9wcN7YcM",
-            authDomain: "car-data-b1d46.firebaseapp.com",
-            projectId: "car-data-b1d46",
-            storageBucket: "car-data-b1d46.firebasestorage.app",
-            messagingSenderId: "640847189726",
-            appId: "1:640847189726:web:7b52539727a517e300944f"
-        };
-        
-        // This token is only used in the Canvas environment, set to null for public deployment.
-        const initialAuthToken = null; 
-        // --- END CUSTOM FIREBASE CONFIGURATION ---
+        // --- FIREBASE CONFIGURATION (ENVIRONMENT AWARE) ---
+        // Using provided environment variables for security and compatibility
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let db, auth, userId, currentCarData = [];
-        const apiKey = ""; // API Key for Gemini API, provided by Canvas environment
+        let db, auth, userId;
+        let currentCarData = [];
+        const EXPORT_PASSWORD = "givemethisnow"; // Simple admin password
 
-        // UI Elements (Form)
+        // --- FIRESTORE PATHS (STRICT COMPLIANCE) ---
+        // RULE 1 Compliance: /artifacts/{appId}/public/data/{collectionName}
+        const PUBLIC_CARS_COLLECTION_PATH = `artifacts/${appId}/public/data/cars`;
+        // Admin config moved to a compliant public data path (permissions handled by app logic in this demo)
+        const ADMIN_DOC_PATH = `artifacts/${appId}/public/data/admin_settings`; 
+        const ADMIN_CONFIG_ID = "config";
+
+        // UI Elements (Shared)
+        const userInfo = document.getElementById('user-info');
+        const mainTitle = document.getElementById('main-title');
+        const mainSubtitle = document.getElementById('main-subtitle');
+        const loader = document.getElementById('car-list-loader');
+        const tabPublic = document.getElementById('tab-public');
+        const tabAdmin = document.getElementById('tab-admin');
+        const carCountBadge = document.getElementById('car-count-badge');
+
+        // UI Elements (Public)
+        const publicView = document.getElementById('public-view');
         const form = document.getElementById('submission-form');
         const carNameInput = document.getElementById('car-name');
         const spawnCodeInput = document.getElementById('spawn-code');
         const imageUrlInput = document.getElementById('image-url');
         const discordNameInput = document.getElementById('discord-name');
-        const messageBox = document.getElementById('message-box');
+        const formMessageBox = document.getElementById('form-message-box');
         const submitButton = document.getElementById('submit-button');
         const buttonText = document.getElementById('button-text');
         const loadingSpinner = document.getElementById('loading-spinner');
-        
-        // UI Elements (AI)
-        const aiImageUrlInput = document.getElementById('ai-image-url');
-        const generateButton = document.getElementById('generate-button');
-        const generateText = document.getElementById('generate-text');
-        const aiLoadingSpinner = document.getElementById('ai-loading-spinner');
-        const aiMessageBox = document.getElementById('ai-message-box');
-        const aiResultsDiv = document.getElementById('ai-results');
-        const suggestionsListDiv = document.getElementById('suggestions-list'); // NEW: Container for multiple suggestions
+        const publicCarList = document.getElementById('public-car-list');
+        const publicNoCarsMessage = document.getElementById('public-no-cars-message');
 
-        // UI Elements (List)
-        const carList = document.getElementById('car-list');
-        const loader = document.getElementById('car-list-loader');
-        const noCarsMessage = document.getElementById('no-cars-message');
-        const userInfo = document.getElementById('user-info');
+        // UI Elements (Admin)
+        const adminView = document.getElementById('admin-view');
+        const authText = document.getElementById('auth-text');
+        const adminLoginArea = document.getElementById('admin-login-area');
+        const adminTools = document.getElementById('admin-tools-content');
+        const adminCarList = document.getElementById('admin-car-list');
+        const adminNoCarsMessage = document.getElementById('admin-no-cars-message');
         const exportCsvButton = document.getElementById('export-csv-button');
+        const searchInput = document.getElementById('admin-search');
+        const adminMessageBox = document.getElementById('admin-message-box');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const adminPasswordInput = document.getElementById('admin-password-input');
+        const loginMessageBox = document.getElementById('login-message-box');
+        const adminLogoutButton = document.getElementById('admin-logout-button');
 
-        // Firestore Path Constants
-        const PUBLIC_CARS_COLLECTION_PATH = `artifacts/${appId}/public/data/cars`;
+        let isUserAdmin = false;
+        let activeView = 'public';
 
-        // Utility to display messages
+        // --- UTILITIES ---
+
         function showMessage(box, text, isError = false) {
             box.textContent = text;
             box.className = `mt-3 text-sm text-center font-medium ${isError ? 'text-red-400' : 'text-green-400'}`;
             setTimeout(() => {
-                box.textContent = '';
+                if(box) box.textContent = '';
             }, 5000);
         }
         
-        function showFormMessage(text, isError = false) {
-            showMessage(messageBox, text, isError);
-        }
-        
-        function showAiMessage(text, isError = false) {
-            showMessage(aiMessageBox, text, isError);
-        }
+        function showFormMessage(text, isError = false) { showMessage(formMessageBox, text, isError); }
+        function showAdminMessage(text, isError = false) { showMessage(adminMessageBox, text, isError); }
+        function showLoginMessage(text, isError = false) { showMessage(loginMessageBox, text, isError); }
 
-        // Utility to toggle loading state for manual submit
         function toggleLoading(isLoading) {
             submitButton.disabled = isLoading;
             buttonText.classList.toggle('hidden', isLoading);
             loadingSpinner.classList.toggle('hidden', !isLoading);
         }
 
-        // Utility to toggle loading state for AI lookup
-        function toggleAiLoading(isLoading) {
-            generateButton.disabled = isLoading;
-            generateText.textContent = isLoading ? 'Analyzing...' : 'Generate Info';
-            aiLoadingSpinner.classList.toggle('hidden', !isLoading);
-        }
-        
-        // --- AI LOOKUP LOGIC ---
+        // --- INITIALIZATION ---
 
-        // Function to fetch image data and convert to base64
-        async function getBase64Image(url) {
-            // Fix for CORS issues: Use a reliable proxy service to fetch the image.
-            // Switched to 'api.allorigins.win' to try and bypass the 403 Forbidden issues encountered with the previous proxy.
-            const PROXY_URL = 'https://api.allorigins.win/raw?url=';
-            const proxiedUrl = PROXY_URL + encodeURIComponent(url);
-
-            try {
-                // Fetch the image using the proxy
-                const response = await fetch(proxiedUrl);
-                
-                if (!response.ok) {
-                    // Provide a more actionable error message if the proxy or server fails
-                    throw new Error(`Failed to fetch proxied image (Status: ${response.status} ${response.statusText}). The original server or proxy may be blocking the request. Please try an image hosted on a different service (e.g., Imgur, GitHub).`);
-                }
-
-                const blob = await response.blob();
-                
-                // Get MIME type from the blob
-                const mimeType = blob.type;
-                if (!mimeType.startsWith('image/')) {
-                     throw new Error('URL does not point to a valid image file.');
-                }
-                
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        // Extract base64 part (after "data:image/jpeg;base64,")
-                        const base64Data = reader.result.split(',')[1];
-                        resolve({ base64Data, mimeType });
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            } catch (error) {
-                console.error("Error fetching or converting image:", error);
-                throw new Error(`Could not load or process the image from the URL provided. Please check the URL: ${error.message}`);
-            }
-        }
-        
-        // Function to render the list of suggested cars
-        function renderSuggestions(suggestions, imageUrl) {
-            suggestionsListDiv.innerHTML = ''; // Clear previous results
-            
-            if (!Array.isArray(suggestions) || suggestions.length === 0) {
-                showAiMessage("AI found no specific car suggestions in the image.", true);
-                aiResultsDiv.classList.add('hidden');
-                return;
-            }
-
-            suggestions.forEach((suggestion) => {
-                const name = suggestion.carName || 'Unknown Car';
-                const code = suggestion.spawnCode || 'UNKNOWN';
-
-                const suggestionItem = document.createElement('div');
-                suggestionItem.className = 'flex justify-between items-center p-3 bg-[#1e2329] rounded-lg border border-[#30363d]';
-                suggestionItem.innerHTML = `
-                    <div class="flex-grow">
-                        <p class="text-sm font-bold text-white">${name}</p>
-                        <p class="text-xs text-gray-400">Code: <span class="font-mono text-yellow-400">${code}</span></p>
-                    </div>
-                    <button data-name="${name}" data-code="${code}" data-image="${imageUrl}" 
-                            class="apply-suggestion-btn flex-shrink-0 ml-4 py-1 px-3 bg-[#58a6ff] text-white font-semibold rounded-lg text-sm hover:bg-[#79a9e3] transition duration-200">
-                        Use
-                    </button>
-                `;
-                suggestionsListDiv.appendChild(suggestionItem);
-            });
-            
-            aiResultsDiv.classList.remove('hidden');
-            showAiMessage(`Analysis complete! AI suggested ${suggestions.length} car(s). Select one below.`, false);
-        }
-
-
-        // Main AI Generation function
-        async function generateCarInfo() {
-            suggestionsListDiv.innerHTML = '';
-            aiResultsDiv.classList.add('hidden');
-            const imageUrl = aiImageUrlInput.value.trim();
-
-            if (!imageUrl) {
-                showAiMessage("Please paste an image URL first.", true);
-                return;
-            }
-
-            toggleAiLoading(true);
-            showAiMessage("Analyzing image, please wait...", false);
-
-            try {
-                // 1. Get Base64 data from the URL
-                const { base64Data, mimeType } = await getBase64Image(imageUrl);
-
-                // 2. Define the system instruction and user prompt
-                const systemPrompt = `You are an expert vehicle identification assistant. Analyze the image and identify ALL visible cars. For each car, extract its Car Name (model name) and its corresponding 5-letter Spawn Code used in the game FiveM/GTA V roleplaying servers. Your output MUST be a strict JSON array of objects.`;
-                const userQuery = `Analyze this image. Identify ALL cars and provide an array of Car Names (e.g., Sultan RS) and their 5-letter Spawn Codes (e.g., SULTN). If you cannot confidently identify a code, use a best guess or use UNKNOWN. Respond only with the JSON array.`;
-
-                // 3. Construct the API payload for structured response
-                const payload = {
-                    contents: [
-                        {
-                            role: "user",
-                            parts: [
-                                { text: userQuery },
-                                {
-                                    inlineData: {
-                                        mimeType: mimeType,
-                                        data: base64Data
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    },
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "ARRAY", // CHANGED TO ARRAY
-                            items: {
-                                type: "OBJECT",
-                                properties: {
-                                    "carName": { "type": "STRING", "description": "The full vehicle name or model." },
-                                    "spawnCode": { "type": "STRING", "description": "The 5-letter spawn code for the car." }
-                                },
-                                required: ["carName", "spawnCode"]
-                            }
-                        }
-                    }
-                };
-
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-                // 4. Make the API call
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                
-                let generatedData = null; // This will be an array of car objects
-                
-                // 5. Extract and parse the JSON response
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    
-                    const jsonString = result.candidates[0].content.parts[0].text;
-                    generatedData = JSON.parse(jsonString);
-                    
-                } else {
-                    throw new Error("AI response was empty or malformed.");
-                }
-
-                if (Array.isArray(generatedData) && generatedData.length > 0) {
-                    // Display the list of suggestions
-                    renderSuggestions(generatedData, imageUrl);
-                    
-                } else {
-                    throw new Error("AI could not confidently identify any cars in the image.");
-                }
-
-            } catch (error) {
-                console.error("AI Lookup failed:", error);
-                showAiMessage(`AI Lookup failed: ${error.message}`, true);
-            } finally {
-                toggleAiLoading(false);
-            }
-        }
-        
-        // Event Listeners for AI section
-        generateButton.addEventListener('click', generateCarInfo);
-        
-        // Listener for dynamic "Use" buttons in the suggestions list
-        suggestionsListDiv.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('apply-suggestion-btn')) {
-                const btn = e.target;
-                const suggestedName = btn.dataset.name;
-                const suggestedCode = btn.dataset.code;
-                const aiImageUrl = btn.dataset.image;
-
-                if (suggestedName && suggestedCode) {
-                    // Fill the manual submission fields
-                    carNameInput.value = suggestedName;
-                    spawnCodeInput.value = suggestedCode;
-                    imageUrlInput.value = aiImageUrl; // Apply the image URL to the manual submission form
-                    
-                    showFormMessage(`Suggestion for '${suggestedName}' applied! Please check the details and add your Discord Name.`, false);
-                    // Clear AI results section after applying
-                    aiResultsDiv.classList.add('hidden');
-                }
-            }
-        });
-
-
-        // --- FIREBASE INITIALIZATION AND CRUD (Unchanged from previous version) ---
-        
-        // --- 1. INITIALIZATION AND AUTHENTICATION ---
         async function initializeFirebase() {
+            if (!firebaseConfig) {
+                showFormMessage("Firebase config missing. Cannot start.", true);
+                return;
+            }
+
             try {
-                // setLogLevel('debug'); // Uncomment for Firestore debugging
-                
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                await setPersistence(auth, browserSessionPersistence);
+                // Initialize Icons
+                if (window.lucide) window.lucide.createIcons();
 
+                // Auth Logic: Custom Token -> Anonymous
+                // IMPORTANT: Await auth before setting up listeners
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                onAuthStateChanged(auth, (user) => {
+                onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        userInfo.textContent = `Current User ID: ${userId} (used for tracking submissions)`;
-                        startRealtimeListener();
+                        // Display truncated User ID
+                        userInfo.textContent = `UID: ${userId.substring(0, 6)}...`;
+                        checkAdminStatus(userId);
+                        startRealtimeListener(userId);
                     } else {
                         userId = null;
-                        userInfo.textContent = `Authentication required to submit/view data.`;
+                        userInfo.textContent = `Auth Required`;
+                        isUserAdmin = false;
+                        switchView('public');
                     }
                 });
+                
+                // Event Listeners
+                form.addEventListener('submit', handleSubmission);
+                adminLoginForm.addEventListener('submit', handleAdminLogin);
+                adminLogoutButton.addEventListener('click', handleAdminLogout);
+                searchInput.addEventListener('input', () => {
+                    if (isUserAdmin && activeView === 'admin') renderAdminCarList(currentCarData);
+                });
+                exportCsvButton.addEventListener('click', exportToCsv);
+                tabPublic.addEventListener('click', () => switchView('public'));
+                tabAdmin.addEventListener('click', () => switchView('admin'));
 
             } catch (error) {
-                console.error("Firebase initialization or authentication failed:", error);
-                showFormMessage(`Initialization error: ${error.message}`, true);
+                console.error("Firebase init error:", error);
+                showFormMessage(`System Error: ${error.message}`, true);
             }
         }
 
-        // --- 2. DATA SUBMISSION LOGIC ---
-        form.addEventListener('submit', async (e) => {
+        // --- VIEW MANAGEMENT ---
+
+        function updateHeader(viewId) {
+            if (viewId === 'admin') {
+                mainTitle.textContent = "Admin Management";
+                mainTitle.classList.remove('text-[#58a6ff]');
+                mainTitle.classList.add('text-red-400');
+                mainSubtitle.textContent = "Manage submissions, search, and delete entries.";
+            } else {
+                mainTitle.textContent = "Community Car Code Submissions";
+                mainTitle.classList.remove('text-red-400');
+                mainTitle.classList.add('text-[#58a6ff]');
+                mainSubtitle.textContent = "Submit your finds! Data is stored in a cloud database.";
+            }
+        }
+
+        function switchView(viewId) {
+            activeView = viewId;
+
+            // Update Tabs
+            tabPublic.classList.remove('tab-active');
+            tabAdmin.classList.remove('admin-tab-active', 'tab-active');
+
+            publicView.classList.add('hidden');
+            adminView.classList.add('hidden');
+
+            if (viewId === 'public') {
+                tabPublic.classList.add('tab-active');
+                publicView.classList.remove('hidden');
+                if(currentCarData.length > 0) renderPublicCarList(currentCarData);
+            } else if (viewId === 'admin') {
+                tabAdmin.classList.add('admin-tab-active');
+                adminView.classList.remove('hidden');
+                
+                if (isUserAdmin) {
+                    adminLoginArea.classList.add('hidden');
+                    adminTools.classList.remove('hidden');
+                    authText.textContent = "Access Granted";
+                    authText.classList.replace('text-yellow-400', 'text-green-400');
+                    if (currentCarData.length > 0) renderAdminCarList(currentCarData);
+                } else {
+                    adminLoginArea.classList.remove('hidden');
+                    adminTools.classList.add('hidden');
+                    authText.textContent = "Enter password or ensure your UID is in the database.";
+                    authText.classList.replace('text-green-400', 'text-yellow-400');
+                }
+            }
+            updateHeader(viewId);
+        }
+
+        // --- ADMIN AUTH ---
+
+        async function isPermanentAdmin(uid) {
+            if (!db) return false;
+            try {
+                // Checking admin status from public/data/admin_settings/config
+                const adminDocRef = doc(db, ADMIN_DOC_PATH, ADMIN_CONFIG_ID);
+                const adminDocSnap = await getDoc(adminDocRef);
+
+                if (adminDocSnap.exists()) {
+                    const data = adminDocSnap.data();
+                    const adminUIDs = data.uids || []; 
+                    return adminUIDs.includes(uid);
+                }
+                return false;
+            } catch (error) {
+                // Fails silently if doc doesn't exist (normal for first run)
+                return false;
+            }
+        }
+        
+        function checkAdminStatus(uid) {
+            const isTemporary = localStorage.getItem('isAdmin') === 'true';
+            isPermanentAdmin(uid).then(isPermanent => {
+                isUserAdmin = isPermanent || isTemporary;
+                if (activeView === 'admin') switchView('admin');
+            });
+        }
+        
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const password = adminPasswordInput.value.trim();
+
+            if (password === EXPORT_PASSWORD) {
+                localStorage.setItem('isAdmin', 'true');
+                isUserAdmin = true;
+                switchView('admin');
+                showLoginMessage("Admin access granted.", false);
+                adminPasswordInput.value = '';
+            } else {
+                showLoginMessage("Incorrect password.", true);
+            }
+        }
+        
+        function handleAdminLogout() {
+            localStorage.removeItem('isAdmin');
+            isUserAdmin = false;
+            switchView('public');
+            showFormMessage("Logged out of admin.", false);
+        }
+
+        // --- DATA SUBMISSION ---
+
+        async function handleSubmission(e) {
             e.preventDefault();
             if (!db || !userId) {
-                showFormMessage("Database connection not ready. Please wait.", true);
+                showFormMessage("Not connected to database.", true);
                 return;
             }
 
-            // Get raw input values
-            const rawCarName = carNameInput.value;
-            const rawSpawnCode = spawnCodeInput.value;
+            const carName = carNameInput.value.trim();
+            const spawnCode = spawnCodeInput.value.trim();
+            const discordName = discordNameInput.value.trim();
             const imageUrl = imageUrlInput.value.trim();
-            const rawDiscordName = discordNameInput.value;
-
-            // Normalize and validate inputs
-            const carName = rawCarName.trim();
-            const spawnCode = rawSpawnCode.trim();
-            const discordName = rawDiscordName.trim();
             
             if (!carName || !spawnCode || !discordName) {
-                showFormMessage("Car Name, Spawn Code, and Discord Name are required.", true);
+                showFormMessage("Fields marked with * are required.", true);
                 return;
             }
 
-            // Standardize the fields used for searching and saving to lowercase for case-insensitivity
             const searchName = carName.toLowerCase();
             const searchCode = spawnCode.toLowerCase();
 
@@ -483,27 +439,20 @@
             try {
                 const carsRef = collection(db, PUBLIC_CARS_COLLECTION_PATH);
 
+                // Check duplicates by Name OR Code
                 let existingCarDoc = null;
                 let carDocRef = null;
 
-                // Priority 1: Search by standardized name
                 const qByName = query(carsRef, where('name', '==', searchName));
                 const snapshotByName = await getDocs(qByName);
-
                 if (!snapshotByName.empty) {
                     existingCarDoc = snapshotByName.docs[0];
-                    carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
                 } else {
-                    // Priority 2: Search by standardized code
                     const qByCode = query(carsRef, where('code', '==', searchCode));
                     const snapshotByCode = await getDocs(qByCode);
-                    if (!snapshotByCode.empty) {
-                        existingCarDoc = snapshotByCode.docs[0];
-                        carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
-                    }
+                    if (!snapshotByCode.empty) existingCarDoc = snapshotByCode.docs[0];
                 }
 
-                // CRITICAL FIX: Use client-side timestamp (Date.now()) inside the array
                 const newSubmission = {
                     userId: userId,
                     discordName: discordName,
@@ -511,29 +460,24 @@
                 };
 
                 if (existingCarDoc) {
-                    // 2. If Car Exists (Update)
+                    carDocRef = doc(db, PUBLIC_CARS_COLLECTION_PATH, existingCarDoc.id);
                     const existingData = existingCarDoc.data();
-
-                    // Prevent duplicate submissions by the same user with the same discord tag
-                    const alreadySubmitted = existingData.submissions.some(s => s.userId === userId && s.discordName === discordName);
+                    
+                    // Duplicate submission check
+                    const alreadySubmitted = existingData.submissions && existingData.submissions.some(s => s.discordName === discordName);
 
                     if (alreadySubmitted) {
-                        showFormMessage(`You (User ID: ${userId}) have already submitted this car under Discord name '${discordName}'. Count not updated.`, false);
-                        toggleLoading(false);
-                        return;
+                        showFormMessage(`You have already submitted this car as '${discordName}'.`, false);
+                    } else {
+                        await updateDoc(carDocRef, {
+                            count: (existingData.count || 0) + 1,
+                            submissions: arrayUnion(newSubmission),
+                            imageUrl: (existingData.imageUrl && existingData.imageUrl.length > 5) ? existingData.imageUrl : imageUrl,
+                            updatedAt: serverTimestamp() 
+                        });
+                        showFormMessage(`Added your confirmation to existing car '${carName}'!`, false);
                     }
-
-                    await updateDoc(carDocRef, {
-                        count: existingData.count + 1,
-                        submissions: arrayUnion(newSubmission),
-                        imageUrl: existingData.imageUrl || imageUrl,
-                        updatedAt: serverTimestamp() 
-                    });
-
-                    showFormMessage(`Car '${carName}' already exists. Submission count updated to x${existingData.count + 1}!`, false);
-
                 } else {
-                    // 3. If Car is New (Create)
                     const newCarData = {
                         name: searchName,
                         code: searchCode,
@@ -543,126 +487,196 @@
                         createdAt: serverTimestamp(), 
                         updatedAt: serverTimestamp() 
                     };
-
                     await addDoc(carsRef, newCarData);
-                    showFormMessage(`New car '${carName}' submitted successfully!`, false);
+                    showFormMessage(`New car '${carName}' created!`, false);
                 }
-
-                // Clear form fields
                 form.reset();
-                aiImageUrlInput.value = ''; // Also clear the AI lookup image URL
 
             } catch (error) {
-                console.error("Error submitting car:", error);
-                showFormMessage(`Failed to submit car: ${error.message}`, true);
+                console.error("Submission error:", error);
+                showFormMessage(`Error: ${error.message}`, true);
             } finally {
                 toggleLoading(false);
             }
-        });
+        }
 
+        // --- REALTIME LISTENER & RENDER ---
 
-        // --- 3. REAL-TIME DATA LISTENER AND RENDERING ---
+        function startRealtimeListener(currentUserId) {
+            if (!db) return;
+            const q = collection(db, PUBLIC_CARS_COLLECTION_PATH);
 
-        function renderCarList(cars) {
-            currentCarData = cars; 
-            carList.innerHTML = '';
+            onSnapshot(q, (snapshot) => {
+                const cars = [];
+                snapshot.forEach((doc) => cars.push({ id: doc.id, ...doc.data() }));
+                
+                currentCarData = cars;
+                carCountBadge.textContent = `${cars.length} Cars`;
+
+                if (activeView === 'admin' && isUserAdmin) {
+                    renderAdminCarList(currentCarData);
+                } else {
+                    renderPublicCarList(currentCarData);
+                }
+            }, (error) => {
+                console.error("Snapshot error:", error);
+                loader.innerHTML = "<span class='text-red-500'>Failed to load data.</span>";
+            });
+        }
+
+        // --- RENDERING ---
+
+        function copyToClipboard(text) {
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            alert(`Copied code: ${text}`);
+        }
+        window.copyCode = copyToClipboard; // Expose to global for inline onclick
+
+        function renderPublicCarList(cars) {
+            publicCarList.innerHTML = '';
             loader.classList.add('hidden');
 
             if (cars.length === 0) {
-                noCarsMessage.classList.remove('hidden');
+                publicNoCarsMessage.classList.remove('hidden');
                 return;
             }
+            publicNoCarsMessage.classList.add('hidden');
 
-            noCarsMessage.classList.add('hidden');
+            // Sort by count descending
+            const sortedCars = [...cars].sort((a, b) => b.count - a.count);
 
-            // Sort by count (descending)
-            cars.sort((a, b) => b.count - a.count);
-
-            cars.forEach(car => {
-                const submitters = car.submissions
-                    .map(s => `<span class="bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded-full text-xs">${s.discordName}</span>`)
+            sortedCars.forEach(car => {
+                const submitters = (car.submissions || [])
+                    .map(s => `<span class="bg-blue-900/40 text-blue-300 px-2 py-0.5 rounded text-xs border border-blue-800/50">${s.discordName}</span>`)
                     .join(' ');
 
+                const displayCode = (car.code || "???").toUpperCase();
+
                 const cardHtml = `
-                    <div class="flex flex-col sm:flex-row bg-[#0d1117] p-4 rounded-xl shadow-xl border border-[#30363d] space-y-3 sm:space-y-0 sm:space-x-4">
-                        <!-- Left: Image and Count -->
-                        <div class="flex-shrink-0 relative w-full sm:w-28 h-28 rounded-lg overflow-hidden border border-[#30363d]">
-                            <img src="${car.imageUrl || 'https://placehold.co/112x112/161b22/c9d1d9?text=NO+PIC'}"
-                                 alt="${car.name}"
+                    <div class="flex flex-col sm:flex-row bg-[#0d1117] p-4 rounded-xl shadow-xl border border-[#30363d] space-y-3 sm:space-y-0 sm:space-x-4 hover:border-[#58a6ff]/50 transition-colors">
+                        <div class="flex-shrink-0 relative w-full sm:w-28 h-28 rounded-lg overflow-hidden border border-[#30363d] bg-black">
+                            <img src="${car.imageUrl || ''}" 
+                                 alt="${car.name}" 
                                  class="w-full h-full object-cover"
-                                 onerror="this.onerror=null; this.src='https://placehold.co/112x112/161b22/c9d1d9?text=NO+PIC';"
+                                 onerror="this.src='https://placehold.co/112x112/161b22/c9d1d9?text=Car';"
                             >
-                            <span class="absolute top-0 right-0 bg-red-600 text-white font-bold text-lg px-2 py-1 rounded-bl-lg">
+                            <span class="absolute top-0 right-0 bg-[#58a6ff] text-white font-bold text-xs px-2 py-1 rounded-bl-lg">
                                 x${car.count}
                             </span>
                         </div>
-
-                        <!-- Right: Details -->
-                        <div class="flex-grow">
-                            <!-- Display the name exactly as saved (lowercase) -->
-                            <h3 class="text-xl font-bold text-white mb-1">${car.name.toUpperCase()}</h3>
-                            <p class="text-gray-400 mb-2">Code: <span class="font-mono text-[#58a6ff]">${car.code.toUpperCase()}</span></p>
-
+                        <div class="flex-grow min-w-0">
+                            <h3 class="text-xl font-bold text-white mb-1 truncate" title="${car.name}">${(car.name || "Unknown").toUpperCase()}</h3>
+                            <div class="flex items-center gap-2 mb-2">
+                                <code class="bg-[#1f242c] text-[#58a6ff] px-2 py-1 rounded font-mono border border-[#30363d]">${displayCode}</code>
+                                <button onclick="window.copyCode('${displayCode}')" class="text-gray-500 hover:text-white transition-colors" title="Copy Code">
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                             <div class="mt-2">
-                                <p class="text-xs font-semibold text-gray-400 mb-1">Submitted By:</p>
-                                <div class="flex flex-wrap gap-2 max-h-12 overflow-y-auto">
+                                <p class="text-[10px] uppercase font-semibold text-gray-500 mb-1 tracking-wider">Found By:</p>
+                                <div class="flex flex-wrap gap-1 max-h-12 overflow-y-auto custom-scrollbar">
                                     ${submitters}
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
-                carList.insertAdjacentHTML('beforeend', cardHtml);
+                publicCarList.insertAdjacentHTML('beforeend', cardHtml);
             });
+            if(window.lucide) window.lucide.createIcons();
         }
 
-        function startRealtimeListener() {
-            const q = collection(db, PUBLIC_CARS_COLLECTION_PATH);
+        function renderAdminCarList(cars) {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            adminCarList.innerHTML = '';
+            
+            const filteredCars = cars.filter(car => 
+                (car.name || "").toLowerCase().includes(searchTerm) || 
+                (car.code || "").toLowerCase().includes(searchTerm)
+            );
 
-            onSnapshot(q, (snapshot) => {
-                const cars = [];
-                snapshot.forEach((doc) => {
-                    cars.push({ id: doc.id, ...doc.data() });
+            if (filteredCars.length === 0) {
+                adminNoCarsMessage.classList.remove('hidden');
+                return;
+            }
+            adminNoCarsMessage.classList.add('hidden');
+
+            filteredCars.sort((a, b) => b.count - a.count);
+
+            filteredCars.forEach(car => {
+                 const cardHtml = `
+                    <div id="car-${car.id}" class="flex flex-col sm:flex-row bg-[#0d1117] p-4 rounded-xl shadow-xl border border-red-900/30 space-y-3 sm:space-y-0 sm:space-x-4 items-center">
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-bold text-white">${(car.name || "Unknown").toUpperCase()}</h3>
+                            <p class="text-gray-400 text-sm">Code: <span class="font-mono text-[#58a6ff]">${(car.code || "").toUpperCase()}</span> | Count: ${car.count}</p>
+                        </div>
+                        <div class="flex-shrink-0 pt-1 w-full sm:w-auto">
+                            <button data-car-id="${car.id}" class="delete-btn w-full bg-red-900/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-800 font-semibold py-2 px-4 rounded-lg shadow-md transition duration-200 flex items-center justify-center gap-2">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+                adminCarList.insertAdjacentHTML('beforeend', cardHtml);
+            });
+            
+            if(window.lucide) window.lucide.createIcons();
+            
+            // Attach delete listeners
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const carId = e.currentTarget.dataset.carId;
+                    if(confirm("Permanently delete this car entry?")) {
+                        try {
+                            await deleteDoc(doc(db, PUBLIC_CARS_COLLECTION_PATH, carId));
+                            showAdminMessage("Deleted successfully.", false);
+                        } catch(err) {
+                            console.error(err);
+                            showAdminMessage("Delete failed.", true);
+                        }
+                    }
                 });
-                renderCarList(cars);
-            }, (error) => {
-                console.error("Error fetching real-time data: ", error);
-                loader.classList.add('hidden');
-                showFormMessage("Failed to load car list in real-time.", true);
             });
         }
-        
-        // --- 4. EXPORT TO CSV LOGIC ---
+
         function exportToCsv() {
             if (!currentCarData || currentCarData.length === 0) {
-                showFormMessage("No data to export yet!", true);
+                showAdminMessage("No data to export.", true);
+                return;
+            }
+            
+            // Prompt for security
+            const inputPassword = prompt("Confirm Export Password:");
+            if (inputPassword !== EXPORT_PASSWORD) {
+                showAdminMessage("Wrong password.", true);
                 return;
             }
 
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Car Name,Spawn Code,Count,Submissions (Discord Names)\n";
+            csvContent += "ID,Name,Code,Count,Submitters\n"; 
 
             currentCarData.forEach(car => {
-                const discordNames = car.submissions.map(s => s.discordName).join("; ");
-                const safeName = car.name.replace(/"/g, '""');
-                const safeCode = car.code.replace(/"/g, '""');
-                
-                csvContent += `"${safeName}","${safeCode}",${car.count},"${discordNames}"\n`;
+                const names = (car.submissions || []).map(s => s.discordName).join("; ");
+                csvContent += `"${car.id}","${(car.name||"").replace(/"/g, '""')}","${(car.code||"").replace(/"/g, '""')}",${car.count},"${names}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "car_spawn_codes_export.csv");
+            link.setAttribute("download", `car_codes_export_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
-            
             link.click();
             document.body.removeChild(link);
+            
+            showAdminMessage("Export started.", false);
         }
-        
-        exportCsvButton.addEventListener('click', exportToCsv);
 
-        // Initialize the application when the window loads
+        // Start
         window.onload = initializeFirebase;
 
     </script>
