@@ -58,14 +58,15 @@
                     </button>
                 </div>
                 <p id="ai-message-box" class="mt-3 text-sm font-medium"></p>
+                
+                <!-- NEW: Container for multiple AI suggestions -->
                 <div id="ai-results" class="mt-4 p-3 bg-[#0d1117] border border-[#30363d] rounded-lg hidden">
-                    <p class="text-yellow-400 font-semibold mb-2">AI Suggestions:</p>
-                    <p class="text-gray-300 mb-1">Car Name: <span id="suggested-name" class="font-bold text-white"></span></p>
-                    <p class="text-gray-300">Spawn Code: <span id="suggested-code" class="font-bold text-white"></span></p>
-                    <button type="button" id="apply-suggestions" class="mt-3 w-full py-2 bg-[#58a6ff] text-white font-semibold rounded-lg hover:bg-[#79a9e3] transition duration-200">
-                        Use These Suggestions
-                    </button>
+                    <p class="text-yellow-400 font-semibold mb-2">AI Suggestions Found:</p>
+                    <div id="suggestions-list" class="space-y-3">
+                        <!-- Suggestions will be dynamically injected here, each with a 'Use' button -->
+                    </div>
                 </div>
+                
             </div>
         </div>
         
@@ -171,9 +172,7 @@
         const aiLoadingSpinner = document.getElementById('ai-loading-spinner');
         const aiMessageBox = document.getElementById('ai-message-box');
         const aiResultsDiv = document.getElementById('ai-results');
-        const suggestedNameSpan = document.getElementById('suggested-name');
-        const suggestedCodeSpan = document.getElementById('suggested-code');
-        const applySuggestionsButton = document.getElementById('apply-suggestions');
+        const suggestionsListDiv = document.getElementById('suggestions-list'); // NEW: Container for multiple suggestions
 
         // UI Elements (List)
         const carList = document.getElementById('car-list');
@@ -220,9 +219,19 @@
 
         // Function to fetch image data and convert to base64
         async function getBase64Image(url) {
+            // Fix for CORS issues: Use a reliable proxy service to fetch the image.
+            // Switched to 'api.allorigins.win' to try and bypass the 403 Forbidden issues encountered with the previous proxy.
+            const PROXY_URL = 'https://api.allorigins.win/raw?url=';
+            const proxiedUrl = PROXY_URL + encodeURIComponent(url);
+
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(\`Failed to fetch image: \${response.statusText}\`);
+                // Fetch the image using the proxy
+                const response = await fetch(proxiedUrl);
+                
+                if (!response.ok) {
+                    // Provide a more actionable error message if the proxy or server fails
+                    throw new Error(`Failed to fetch proxied image (Status: ${response.status} ${response.statusText}). The original server or proxy may be blocking the request. Please try an image hosted on a different service (e.g., Imgur, GitHub).`);
+                }
 
                 const blob = await response.blob();
                 
@@ -244,12 +253,47 @@
                 });
             } catch (error) {
                 console.error("Error fetching or converting image:", error);
-                throw new Error("Could not load or process the image from the URL provided. Please check the URL.");
+                throw new Error(`Could not load or process the image from the URL provided. Please check the URL: ${error.message}`);
             }
         }
+        
+        // Function to render the list of suggested cars
+        function renderSuggestions(suggestions, imageUrl) {
+            suggestionsListDiv.innerHTML = ''; // Clear previous results
+            
+            if (!Array.isArray(suggestions) || suggestions.length === 0) {
+                showAiMessage("AI found no specific car suggestions in the image.", true);
+                aiResultsDiv.classList.add('hidden');
+                return;
+            }
+
+            suggestions.forEach((suggestion) => {
+                const name = suggestion.carName || 'Unknown Car';
+                const code = suggestion.spawnCode || 'UNKNOWN';
+
+                const suggestionItem = document.createElement('div');
+                suggestionItem.className = 'flex justify-between items-center p-3 bg-[#1e2329] rounded-lg border border-[#30363d]';
+                suggestionItem.innerHTML = `
+                    <div class="flex-grow">
+                        <p class="text-sm font-bold text-white">${name}</p>
+                        <p class="text-xs text-gray-400">Code: <span class="font-mono text-yellow-400">${code}</span></p>
+                    </div>
+                    <button data-name="${name}" data-code="${code}" data-image="${imageUrl}" 
+                            class="apply-suggestion-btn flex-shrink-0 ml-4 py-1 px-3 bg-[#58a6ff] text-white font-semibold rounded-lg text-sm hover:bg-[#79a9e3] transition duration-200">
+                        Use
+                    </button>
+                `;
+                suggestionsListDiv.appendChild(suggestionItem);
+            });
+            
+            aiResultsDiv.classList.remove('hidden');
+            showAiMessage(`Analysis complete! AI suggested ${suggestions.length} car(s). Select one below.`, false);
+        }
+
 
         // Main AI Generation function
         async function generateCarInfo() {
+            suggestionsListDiv.innerHTML = '';
             aiResultsDiv.classList.add('hidden');
             const imageUrl = aiImageUrlInput.value.trim();
 
@@ -266,8 +310,8 @@
                 const { base64Data, mimeType } = await getBase64Image(imageUrl);
 
                 // 2. Define the system instruction and user prompt
-                const systemPrompt = \`You are an expert vehicle identification assistant. Analyze the image and extract the Car Name (model name) and its corresponding 5-letter Spawn Code used in the game FiveM/GTA V roleplaying servers. Your output MUST be in a strict JSON format.\`;
-                const userQuery = \`Analyze this image of a car. Identify the Car Name (e.g., Sultan RS) and its 5-letter Spawn Code (e.g., SULTN). If you cannot confidently identify the code, provide a best guess or leave the spawnCode blank. Respond only with the JSON object.\`;
+                const systemPrompt = `You are an expert vehicle identification assistant. Analyze the image and identify ALL visible cars. For each car, extract its Car Name (model name) and its corresponding 5-letter Spawn Code used in the game FiveM/GTA V roleplaying servers. Your output MUST be a strict JSON array of objects.`;
+                const userQuery = `Analyze this image. Identify ALL cars and provide an array of Car Names (e.g., Sultan RS) and their 5-letter Spawn Codes (e.g., SULTN). If you cannot confidently identify a code, use a best guess or use UNKNOWN. Respond only with the JSON array.`;
 
                 // 3. Construct the API payload for structured response
                 const payload = {
@@ -291,19 +335,22 @@
                     generationConfig: {
                         responseMimeType: "application/json",
                         responseSchema: {
-                            type: "OBJECT",
-                            properties: {
-                                "carName": { "type": "STRING", "description": "The full vehicle name or model." },
-                                "spawnCode": { "type": "STRING", "description": "The 5-letter spawn code for the car." }
-                            },
-                            required: ["carName", "spawnCode"]
+                            type: "ARRAY", // CHANGED TO ARRAY
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "carName": { "type": "STRING", "description": "The full vehicle name or model." },
+                                    "spawnCode": { "type": "STRING", "description": "The 5-letter spawn code for the car." }
+                                },
+                                required: ["carName", "spawnCode"]
+                            }
                         }
                     }
                 };
 
-                const apiUrl = \`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=\${apiKey}\`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-                // 4. Make the API call (with exponential backoff handled by the environment)
+                // 4. Make the API call
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -312,7 +359,7 @@
                 
                 const result = await response.json();
                 
-                let generatedData = null;
+                let generatedData = null; // This will be an array of car objects
                 
                 // 5. Extract and parse the JSON response
                 if (result.candidates && result.candidates.length > 0 &&
@@ -326,23 +373,17 @@
                     throw new Error("AI response was empty or malformed.");
                 }
 
-                if (generatedData && generatedData.carName && generatedData.spawnCode) {
-                    // Display the suggestions
-                    suggestedNameSpan.textContent = generatedData.carName;
-                    suggestedCodeSpan.textContent = generatedData.spawnCode;
-                    aiResultsDiv.classList.remove('hidden');
-                    showAiMessage("Analysis complete! Review the suggestions below.", false);
-
-                    // Store the image URL to be applied later
-                    aiResultsDiv.dataset.imageUrl = imageUrl; 
+                if (Array.isArray(generatedData) && generatedData.length > 0) {
+                    // Display the list of suggestions
+                    renderSuggestions(generatedData, imageUrl);
                     
                 } else {
-                    throw new Error("AI could not confidently identify the car name or spawn code.");
+                    throw new Error("AI could not confidently identify any cars in the image.");
                 }
 
             } catch (error) {
                 console.error("AI Lookup failed:", error);
-                showAiMessage(\`AI Lookup failed: \${error.message}\`, true);
+                showAiMessage(`AI Lookup failed: ${error.message}`, true);
             } finally {
                 toggleAiLoading(false);
             }
@@ -350,20 +391,25 @@
         
         // Event Listeners for AI section
         generateButton.addEventListener('click', generateCarInfo);
-        applySuggestionsButton.addEventListener('click', () => {
-            const suggestedName = suggestedNameSpan.textContent;
-            const suggestedCode = suggestedCodeSpan.textContent;
-            const aiImageUrl = aiResultsDiv.dataset.imageUrl || aiImageUrlInput.value.trim();
+        
+        // Listener for dynamic "Use" buttons in the suggestions list
+        suggestionsListDiv.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('apply-suggestion-btn')) {
+                const btn = e.target;
+                const suggestedName = btn.dataset.name;
+                const suggestedCode = btn.dataset.code;
+                const aiImageUrl = btn.dataset.image;
 
-            if (suggestedName && suggestedCode) {
-                // Fill the manual submission fields
-                carNameInput.value = suggestedName;
-                spawnCodeInput.value = suggestedCode;
-                imageUrlInput.value = aiImageUrl; // Apply the image URL to the manual submission form
-                
-                showFormMessage("Suggestions applied to the submission form! Please check the details and add your Discord Name.", false);
-                // Clear AI results section after applying
-                aiResultsDiv.classList.add('hidden');
+                if (suggestedName && suggestedCode) {
+                    // Fill the manual submission fields
+                    carNameInput.value = suggestedName;
+                    spawnCodeInput.value = suggestedCode;
+                    imageUrlInput.value = aiImageUrl; // Apply the image URL to the manual submission form
+                    
+                    showFormMessage(`Suggestion for '${suggestedName}' applied! Please check the details and add your Discord Name.`, false);
+                    // Clear AI results section after applying
+                    aiResultsDiv.classList.add('hidden');
+                }
             }
         });
 
